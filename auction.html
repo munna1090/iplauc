@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Auction - Playing XI Builder</title>
+    <meta name="description" content="Build your IPL Playing XI with budget tracking, dynamic pricing and auto best XI selection">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="auction.css">
+</head>
+<body>
+    <div class="bg-animation"><div class="bg-orb bg-orb-1"></div><div class="bg-orb bg-orb-2"></div><div class="bg-orb bg-orb-3"></div></div>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <a href="index.html" class="back-link">← Back to Ratings</a>
+        <h1 class="topbar-title">🏏 IPL Auction <span class="gtext">Builder</span></h1>
+        <div class="budget-input-group">
+            <label>Budget (₹ Cr):</label>
+            <input type="number" id="budgetInput" value="100" min="10" max="1000" step="5" class="budget-field">
+            <button id="setBudgetBtn" class="set-budget-btn">Set for All Teams</button>
+        </div>
+    </header>
+
+    <!-- Team Tabs -->
+    <nav class="team-nav">
+        <div class="team-tabs" id="teamTabs"></div>
+    </nav>
+
+    <!-- Team Dashboard -->
+    <main class="auction-main">
+        <!-- Team Info Bar -->
+        <div class="team-info-bar" id="teamInfoBar">
+            <div class="info-card"><span class="info-label">TEAM</span><span class="info-value" id="infoTeamName">CSK</span></div>
+            <div class="info-card budget-card"><span class="info-label">TOTAL BUDGET</span><span class="info-value" id="infoTotalBudget">₹100 Cr</span></div>
+            <div class="info-card spent-card"><span class="info-label">SPENT</span><span class="info-value" id="infoSpent">₹0 Cr</span></div>
+            <div class="info-card remaining-card"><span class="info-label">REMAINING</span><span class="info-value" id="infoRemaining">₹100 Cr</span></div>
+            <div class="info-card"><span class="info-label">SQUAD</span><span class="info-value" id="infoPlayers">0/18</span></div>
+            <div class="info-card avg-card"><span class="info-label">AVG RATING</span><span class="info-value" id="infoAvgRating">-</span></div>
+        </div>
+
+        <div class="auction-body">
+            <!-- LEFT: Squad + Best XI -->
+            <div class="left-panel">
+                <!-- Full Squad (18 players) -->
+                <div class="squad-panel">
+                    <div class="panel-header">
+                        <h2>📋 Full Squad (max 18)</h2>
+                        <button class="clear-btn" onclick="clearSquad()">🗑️ Clear</button>
+                    </div>
+                    <div class="squad-slots" id="squadSlots"></div>
+                    <div class="squad-summary" id="squadSummary"></div>
+                </div>
+
+                <!-- Best XI Generator -->
+                <div class="bestxi-panel">
+                    <div class="panel-header">
+                        <h2>🏆 Best Playing XII <span style="font-size:12px;color:var(--amber);font-weight:600">(incl. Impact Player)</span></h2>
+                        <button class="generate-btn" onclick="generateBestXII()">⚡ Generate Best XII</button>
+                    </div>
+
+                    <!-- Composition Config -->
+                    <div class="comp-config">
+                        <h4 class="comp-title">Team Composition (must total 12 incl. Impact Player)</h4>
+                        <div class="comp-grid">
+                            <div class="comp-item">
+                                <label>🏏 Batsmen</label>
+                                <input type="number" id="compBat" value="5" min="0" max="12" class="comp-input">
+                            </div>
+                            <div class="comp-item">
+                                <label>🧤 Keepers</label>
+                                <input type="number" id="compKeep" value="1" min="0" max="12" class="comp-input">
+                            </div>
+                            <div class="comp-item">
+                                <label>🎯 Bowlers</label>
+                                <input type="number" id="compBowl" value="4" min="0" max="12" class="comp-input">
+                            </div>
+                            <div class="comp-item">
+                                <label>⚡ All-Rounders</label>
+                                <input type="number" id="compAR" value="2" min="0" max="12" class="comp-input">
+                            </div>
+                        </div>
+                        <div class="comp-total" id="compTotal">Total: 12 ✓ (incl. Impact Player)</div>
+                    </div>
+
+                    <!-- Best XI Result -->
+                    <div class="bestxi-result" id="bestXIResult">
+                        <div class="bestxi-empty">Buy at least 12 players, then generate Best XII</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Player Picker -->
+            <div class="picker-panel">
+                <div class="panel-header">
+                    <h2>📋 Available Players</h2>
+                    <span class="avail-count" id="availCount">0 available</span>
+                </div>
+                <div class="picker-filters">
+                    <input type="text" id="pickerSearch" placeholder="Search player..." class="p-search">
+                    <select id="pickerCat" class="p-select">
+                        <option value="all">All Roles</option>
+                        <option value="batsmen">Batsmen</option>
+                        <option value="keepers">Keepers</option>
+                        <option value="bowlers">Bowlers</option>
+                        <option value="allrounders">All-Rounders</option>
+                    </select>
+                    <select id="pickerSort" class="p-select">
+                        <option value="price-desc">Price ↓</option>
+                        <option value="price-asc">Price ↑</option>
+                        <option value="rating-desc">Rating ↓</option>
+                        <option value="name-asc">Name A-Z</option>
+                    </select>
+                </div>
+                <div class="picker-list" id="pickerList"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Price Input Modal -->
+    <div class="price-modal-overlay" id="priceModalOverlay">
+        <div class="price-modal" id="priceModal">
+            <button class="pm-close" onclick="closePriceModal()">&times;</button>
+            <div class="pm-player-info" id="pmPlayerInfo"></div>
+            <div class="pm-input-group">
+                <label>Enter Purchase Price (₹ Cr):</label>
+                <div class="pm-input-row">
+                    <span class="pm-currency">₹</span>
+                    <input type="number" id="pmPriceInput" min="0.1" step="0.25" class="pm-price-field" placeholder="0.00">
+                    <span class="pm-unit">Cr</span>
+                </div>
+                <div class="pm-estimate" id="pmEstimate"></div>
+            </div>
+            <button class="pm-confirm-btn" id="pmConfirmBtn">✓ Confirm Purchase</button>
+        </div>
+    </div>
+
+    <footer class="auction-footer">
+        <p>📊 Stats from <a href="https://www.iplt20.com/stats/all-time" target="_blank">iplt20.com</a> | Prices estimated dynamically based on rating & availability</p>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="auction.js"></script>
+</body>
+</html>
