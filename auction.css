@@ -42,6 +42,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);min-hei
 .team-tab:hover{border-color:var(--team-color,var(--blue));color:var(--t1)}
 .team-tab.active{background:var(--team-bg,rgba(59,130,246,.12));border-color:var(--team-color,var(--blue));color:var(--team-color,var(--blue));box-shadow:0 0 15px rgba(59,130,246,.15)}
 .team-tab .tab-count{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.team-tab .tab-avg{display:block;font-size:11px;font-weight:800;margin-top:2px;letter-spacing:0.5px}
 
 /* ===== TEAM INFO BAR ===== */
 .team-info-bar{display:flex;gap:12px;padding:20px 24px;flex-wrap:wrap;max-width:1440px;margin:0 auto}

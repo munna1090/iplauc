@@ -1,7 +1,25 @@
 // ============================================================
 // IPL AUCTION PLAYER RATING DASHBOARD - APP LOGIC v2
-// Star Players, Rankings, Playing 11 Builder
+// Star Players, Rankings, Playing 11 Builder, Sold-Out Tracking
 // ============================================================
+
+// ---- Sold-Out Tracking (persisted in localStorage) ----
+const SOLD_STORAGE_KEY = 'ipl_sold_players';
+function getSoldPlayers() {
+    try { return new Set(JSON.parse(localStorage.getItem(SOLD_STORAGE_KEY) || '[]')); }
+    catch(e) { return new Set(); }
+}
+function saveSoldPlayers(soldSet) {
+    localStorage.setItem(SOLD_STORAGE_KEY, JSON.stringify([...soldSet]));
+}
+function toggleSold(playerName, event) {
+    event.stopPropagation(); // prevent card click / modal open
+    const sold = getSoldPlayers();
+    if (sold.has(playerName)) sold.delete(playerName);
+    else sold.add(playerName);
+    saveSoldPlayers(sold);
+    renderPlayers();
+}
 
 // Star players get a +0.5 rating boost
 const STAR_PLAYERS = new Set([
@@ -54,18 +72,20 @@ function getBaseRating(p) {
 function getPlayerRating(p) {
     let r = getBaseRating(p);
     if (STAR_PLAYERS.has(p.name)) r += 0.5; // Star boost
-    return Math.min(9.9, Math.max(1.0, r)).toFixed(1);
+    r = Math.min(9.9, Math.max(1.0, r));
+    // Convert from /10 to /5 scale
+    return (r / 2).toFixed(1);
 }
 
 function getRatingClass(r) {
-    if (r>=9.0) return 'elite'; if (r>=8.0) return 'outstanding';
-    if (r>=7.0) return 'excellent'; if (r>=6.0) return 'good';
-    if (r>=5.0) return 'average'; return 'below';
+    if (r>=4.5) return 'elite'; if (r>=4.0) return 'outstanding';
+    if (r>=3.5) return 'excellent'; if (r>=3.0) return 'good';
+    if (r>=2.5) return 'average'; return 'below';
 }
 function getRatingLabel(r) {
-    if (r>=9.0) return 'Elite'; if (r>=8.0) return 'Outstanding';
-    if (r>=7.0) return 'Excellent'; if (r>=6.0) return 'Good';
-    if (r>=5.0) return 'Average'; return 'Below Avg';
+    if (r>=4.5) return 'Elite'; if (r>=4.0) return 'Outstanding';
+    if (r>=3.5) return 'Excellent'; if (r>=3.0) return 'Good';
+    if (r>=2.5) return 'Average'; return 'Below Avg';
 }
 function getRoleLabel(c) { return {batsmen:'Batsman',keepers:'Wicket-Keeper',bowlers:'Bowler',allrounders:'All-Rounder'}[c]||c; }
 function getRoleClass(c) { return {batsmen:'batsman',keepers:'keeper',bowlers:'bowler',allrounders:'allrounder'}[c]||''; }
@@ -103,10 +123,20 @@ function getStatsHTML(p) {
 function createCard(p, displayRank) {
     const rating = p._rating;
     const rClass = getRatingClass(rating);
-    const circ = 2*Math.PI*24, offset = circ - (rating/10)*circ;
+    const circ = 2*Math.PI*24, offset = circ - (rating/5)*circ;
     const starBadge = p._star ? '<span class="star-badge">⭐ STAR</span>' : '';
-    return `<div class="player-card" data-idx="${p._idx}" onclick="openModal(${p._idx})" style="animation-delay:${Math.min(displayRank*0.03,1.2)}s">
+    const sold = getSoldPlayers();
+    const isSold = sold.has(p.name);
+    const soldClass = isSold ? ' sold-out' : '';
+    const soldOverlay = isSold ? '<div class="sold-overlay"><span class="sold-text">SOLD OUT</span></div>' : '';
+    const checkboxChecked = isSold ? 'checked' : '';
+    return `<div class="player-card${soldClass}" data-idx="${p._idx}" onclick="openModal(${p._idx})" style="animation-delay:${Math.min(displayRank*0.03,1.2)}s">
+        ${soldOverlay}
         <div class="rank-badge">#${displayRank}</div>
+        <label class="sold-checkbox-wrapper" title="Mark as Sold Out">
+            <input type="checkbox" class="sold-checkbox" ${checkboxChecked} onclick="toggleSold('${p.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', event)">
+            <span class="sold-checkmark"></span>
+        </label>
         <div class="card-header">
             <div class="player-info">
                 <div class="player-name">${p.name} ${starBadge}</div>
@@ -115,7 +145,7 @@ function createCard(p, displayRank) {
             </div>
             <div class="rating-circle rating-${rClass}">
                 <svg viewBox="0 0 56 56"><circle class="bg-ring" cx="28" cy="28" r="24"/><circle class="progress-ring" cx="28" cy="28" r="24" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/></svg>
-                <div class="rating-value">${rating}</div>
+                <div class="rating-value">${rating}<span style="font-size:9px;opacity:0.6">/5</span></div>
             </div>
         </div>
         <div class="card-stats">${getStatsHTML(p)}</div>
@@ -163,7 +193,7 @@ function openModal(idx) {
             <div class="modal-stat"><div class="modal-stat-value">${p.mat}</div><div class="modal-stat-label">Matches</div></div>`;
         breakdown = `${bar('Bat Runs',p.runs,4000,gradient)} ${bar('Bat Avg',p.avg,35,gradient)} ${bar('Strike Rate',p.sr-100,80,gradient)} ${bar('Wickets',p.wkts,150,gradient)} ${bar('Economy',(10-(p.econ||10)),4,gradient)} ${bar('Experience',p.mat,200,gradient)}`;
     }
-    const starHTML = p._star ? '<span class="modal-star-badge">⭐ Star Player (+0.5 Boost)</span>' : '';
+    const starHTML = p._star ? '<span class="modal-star-badge">⭐ Star Player (+0.25 Boost)</span>' : '';
     document.getElementById('modalContent').innerHTML = `
         <div class="modal-header">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -175,8 +205,8 @@ function openModal(idx) {
             <span class="modal-role-badge ${getRoleClass(p.category)}">${getRoleLabel(p.category)} • ${p.country}</span>
         </div>
         <div class="modal-rating-section">
-            <div><div class="modal-rating-big" style="color:var(--rating-${rClass})">${rating}</div><div class="modal-rating-label">${getRatingLabel(rating)}</div></div>
-            <div style="flex:1"><div class="modal-rating-bar"><div class="modal-rating-fill" style="width:${rating*10}%;background:${gradient}"></div></div></div>
+            <div><div class="modal-rating-big" style="color:var(--rating-${rClass})">${rating}<span style="font-size:24px;opacity:0.5">/5</span></div><div class="modal-rating-label">${getRatingLabel(rating)}</div></div>
+            <div style="flex:1"><div class="modal-rating-bar"><div class="modal-rating-fill" style="width:${rating*20}%;background:${gradient}"></div></div></div>
         </div>
         <div class="modal-stats-grid">${statsGrid}</div>
         <div class="modal-breakdown"><h4>Rating Breakdown</h4>${breakdown}</div>`;

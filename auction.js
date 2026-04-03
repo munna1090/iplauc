@@ -28,7 +28,7 @@ const IPL_TEAMS = [
 
 const MAX_SQUAD = 18;
 
-// ---- Rating Calculations ----
+// ---- Rating Calculations (out of 5) ----
 function calcRating(p) {
     let r;
     if (p.category==='batsmen') {
@@ -42,10 +42,12 @@ function calcRating(p) {
         r = Math.max(1,Math.min(p.runs/4000*10,10)*0.15+Math.min(p.avg/35*10,10)*0.12+Math.min((p.sr-100)/80*10,10)*0.13+Math.min(p.wkts/150*10,10)*0.18+bav*0.15+be*0.12+Math.min(p.mat/200*10,10)*0.15);
     }
     if (STAR_PLAYERS.has(p.name)) r += 0.5;
-    return Math.min(9.9, Math.max(1.0, r));
+    r = Math.min(9.9, Math.max(1.0, r));
+    // Convert from /10 to /5 scale
+    return parseFloat((r / 2).toFixed(1));
 }
 
-function getRatingClass(r) { if(r>=9)return'elite';if(r>=8)return'outstanding';if(r>=7)return'excellent';if(r>=6)return'good';if(r>=5)return'average';return'below'; }
+function getRatingClass(r) { if(r>=4.5)return'elite';if(r>=4.0)return'outstanding';if(r>=3.5)return'excellent';if(r>=3.0)return'good';if(r>=2.5)return'average';return'below'; }
 function getRoleLabel(c) { return {batsmen:'Batsman',keepers:'Keeper',bowlers:'Bowler',allrounders:'All-Rounder'}[c]||c; }
 function getRoleClass(c) { return {batsmen:'batsman',keepers:'keeper',bowlers:'bowler',allrounders:'allrounder'}[c]||''; }
 
@@ -69,10 +71,10 @@ function estimatePrice(player) {
 
     const rating = player._rating;
     let base;
-    if(rating>=9)base=18;else if(rating>=8.5)base=14;else if(rating>=8)base=11;
-    else if(rating>=7.5)base=8;else if(rating>=7)base=6;else if(rating>=6.5)base=4.5;
-    else if(rating>=6)base=3;else if(rating>=5.5)base=2;else if(rating>=5)base=1.5;
-    else if(rating>=4)base=0.75;else base=0.5;
+    if(rating>=4.5)base=18;else if(rating>=4.25)base=14;else if(rating>=4.0)base=11;
+    else if(rating>=3.75)base=8;else if(rating>=3.5)base=6;else if(rating>=3.25)base=4.5;
+    else if(rating>=3.0)base=3;else if(rating>=2.75)base=2;else if(rating>=2.5)base=1.5;
+    else if(rating>=2.0)base=0.75;else base=0.5;
     if(player._star) base*=1.3;
     const avail=catCounts[player.category],total=catTotal[player.category];
     const scarcity=1+((1-(avail/total))*0.6);
@@ -84,7 +86,13 @@ function estimatePrice(player) {
 function renderTeamTabs() {
     document.getElementById('teamTabs').innerHTML = IPL_TEAMS.map(t => {
         const c = teamData[t.id].squad.length;
-        return `<button class="team-tab ${t.id===activeTeamId?'active':''}" data-team="${t.id}" style="--team-color:${t.color};--team-bg:${t.bg}" onclick="selectTeam('${t.id}')">${t.short}${c?`<span class="tab-count">${c}</span>`:''}</button>`;
+        let avgHtml = '';
+        if (c > 0) {
+            const ratings = teamData[t.id].squad.map(idx => allPlayers.find(p => p._idx === idx)._rating);
+            const avg = (ratings.reduce((s, v) => s + v, 0) / ratings.length).toFixed(1);
+            avgHtml = `<span class="tab-avg" style="color:var(--r-${getRatingClass(parseFloat(avg))})">${avg}★</span>`;
+        }
+        return `<button class="team-tab ${t.id===activeTeamId?'active':''}" data-team="${t.id}" style="--team-color:${t.color};--team-bg:${t.bg}" onclick="selectTeam('${t.id}')">${t.short}${c?`<span class="tab-count">${c}</span>`:''}${avgHtml}</button>`;
     }).join('');
 }
 
@@ -104,7 +112,7 @@ function renderInfoBar() {
         const ratings=td.squad.map(idx=>allPlayers.find(p=>p._idx===idx)._rating);
         const avg=(ratings.reduce((s,v)=>s+v,0)/ratings.length).toFixed(1);
         const el=document.getElementById('infoAvgRating');
-        el.textContent=avg; el.style.color=`var(--r-${getRatingClass(parseFloat(avg))})`;
+        el.textContent=`${avg}/5`; el.style.color=`var(--r-${getRatingClass(parseFloat(avg))})`;
     }else{document.getElementById('infoAvgRating').textContent='-';document.getElementById('infoAvgRating').style.color='var(--t3)';}
 }
 
@@ -119,7 +127,7 @@ function renderSquad() {
                 <span class="sq-num" style="background:${team.color}">${i+1}</span>
                 <div class="sq-info"><div class="sq-name">${p.name}${p._star?' ⭐':''}${inXII?' <span class="xi-tag">XII</span>':''}</div><span class="sq-role ${getRoleClass(p.category)}">${getRoleLabel(p.category)} • ${p.country}</span></div>
                 <span class="sq-price">₹${price} Cr</span>
-                <span class="sq-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}</span>
+                <span class="sq-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}/5</span>
                 <button class="sq-remove" onclick="removePlayer(${i})" title="Remove">✕</button>
             </div>`;
         } else {
@@ -162,7 +170,7 @@ function renderPicker() {
         <div class="pick-player ${isFull?'disabled':''}" onclick="${isFull?'':`openPriceModal(${p._idx})`}">
             <div class="pick-info"><div class="pick-name">${p.name}${p._star?' <span class="star">⭐</span>':''}</div><div class="pick-meta">${getRoleLabel(p.category)} • ${p.country} • ${p.mat} mat</div></div>
             <div class="pick-price"><span class="pick-est">₹${p._estPrice} Cr</span><span class="pick-est-label">Est. Price</span></div>
-            <span class="pick-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}</span>
+            <span class="pick-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}/5</span>
         </div>`).join('')||'<div style="text-align:center;padding:40px;color:var(--t3)">No players available</div>';
 }
 
@@ -176,8 +184,8 @@ function openPriceModal(idx) {
     const spent=td.prices.reduce((s,v)=>s+v,0), remaining=budget-spent;
     document.getElementById('pmPlayerInfo').innerHTML=`
         <div class="pm-name">${p.name}${p._star?' ⭐':''}</div>
-        <div class="pm-detail">${getRoleLabel(p.category)} • ${p.country} • Rating: ${p._rating}</div>
-        <span class="pm-rating-badge" style="background:rgba(59,130,246,.15);color:var(--r-${getRatingClass(p._rating)})">${p._rating} ${getRatingClass(p._rating).toUpperCase()}</span>`;
+        <div class="pm-detail">${getRoleLabel(p.category)} • ${p.country} • Rating: ${p._rating}/5</div>
+        <span class="pm-rating-badge" style="background:rgba(59,130,246,.15);color:var(--r-${getRatingClass(p._rating)})">${p._rating}/5 ${getRatingClass(p._rating).toUpperCase()}</span>`;
     document.getElementById('pmEstimate').innerHTML=`💡 <strong>Estimated Price: ₹${est} Cr</strong> — Based on rating, role scarcity & market dynamics.<br><span style="color:var(--green)">Your remaining budget: ₹${remaining.toFixed(2)} Cr</span>`;
     document.getElementById('pmPriceInput').value=est;
     document.getElementById('priceModalOverlay').classList.add('active');
@@ -275,7 +283,7 @@ function renderBestXII() {
 
     // The 12th player is the impact player
     let html=`<div class="xi-header">
-        <div class="xi-avg"><span class="xi-avg-label">XII AVG RATING</span><span class="xi-avg-value" style="color:var(--r-${getRatingClass(parseFloat(avgR))})">${avgR}</span></div>
+        <div class="xi-avg"><span class="xi-avg-label">XII AVG RATING</span><span class="xi-avg-value" style="color:var(--r-${getRatingClass(parseFloat(avgR))})">${avgR}/5</span></div>
         <div class="xi-avg"><span class="xi-avg-label">XII COST</span><span class="xi-avg-value" style="color:var(--amber)">₹${totalSpent.toFixed(2)} Cr</span></div>
     </div><div class="xi-list">`;
 
@@ -286,7 +294,7 @@ function renderBestXII() {
             <span class="xi-num" style="background:${isImpact?'var(--amber)':team.color}">${isImpact?'IP':(i+1)}</span>
             <div class="xi-info"><div class="xi-pname">${p.name}${p._star?' ⭐':''}${isImpact?' <span class="impact-tag">IMPACT</span>':''}</div><span class="sq-role ${getRoleClass(p.category)}">${getRoleLabel(p.category)}</span></div>
             <span class="sq-price">₹${price} Cr</span>
-            <span class="sq-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}</span>
+            <span class="sq-rating" style="color:var(--r-${getRatingClass(p._rating)})">${p._rating}/5</span>
         </div>`;
     });
     html+='</div>';
